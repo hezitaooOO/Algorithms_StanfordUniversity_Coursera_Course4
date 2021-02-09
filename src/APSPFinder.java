@@ -1,10 +1,7 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Project: Coursera Algorithms by Standford University: Shortest Paths Revisited, NP-Complete Problems and What To Do About Them.
@@ -41,14 +38,16 @@ public class APSPFinder {
 
     private int numVertices;
     private int numEdges;
-    //private HashMap<Integer, ArrayList<Integer>> vertices; //Adjacency list of the graph. Key is vertex ID and value is outgoing vertices
     private HashMap<String, GraphEdge> edges; //Edges in this graph
-    //private GraphEdge[][] edgeMatrix; //edge matrix for fast edge look up
     private int[][][] solutionMatrix;
 
+    /**
+     * Constructor of APSP(all pairs shortest path) finder. The file format can be found in class description
+     * @param fileInputName file name to be used
+     * @throws FileNotFoundException throws error if file not found
+     */
     public APSPFinder(String fileInputName) throws FileNotFoundException {
         Scanner fileScanner;
-        //vertices = new HashMap<>();
         edges = new HashMap<>();
         try {
             fileScanner = new Scanner(new File(fileInputName));
@@ -70,100 +69,97 @@ public class APSPFinder {
             String key = info[0]+"->"+info[1];
             edges.put(key, edge);
         }
-        //add vertices and build edge matrix for fast edge look up
-//        edgeMatrix = new GraphEdge[numVertices][numVertices];
-//        for (GraphEdge edge : edges){
-//            int start = edge.getStartID();
-//            int end = edge.getEndID();
-//            if (!vertices.containsKey(start+"->"+end)){
-//                vertices.put(edge.getStartID(), new ArrayList<>());
-//            }
-//            vertices.get(edge.getStartID()).add(edge.getEndID());
-//            edgeMatrix[edge.getStartID()-1][edge.getEndID()-1] = edge;
-//        }
-        solutionMatrix = new int[numVertices+1][numVertices+1][numVertices+1];
-
+        solutionMatrix = new int[numVertices+1][numVertices+1][2];
     }
 
+    /**
+     * Run Floyd-Warshall algorithm
+     */
     public void runAPSP(){
+        //HashSet<Integer> diagonalValue = new HashSet<>();
         //initialize the 3D array for solution matrix
         for (int i = 1; i <= numVertices; i++){
             for (int j = 1; j<= numVertices; j++){
                 if (i == j){
                     solutionMatrix[i][j][0] = 0;
                 }
-                if (edges.keySet().contains(i+"->"+j)){
+                if (edges.containsKey(i+"->"+j)){
                     solutionMatrix[i][j][0] = edges.get(i+"->"+j).getLength();
                 }
-                if (i != j && !edges.keySet().contains(i+"->"+j)){
-                    //solutionMatrix[i][j][0] = Integer.MAX_VALUE;
-                    solutionMatrix[i][j][0] = 1000000000;
-
+                if (i != j && !edges.containsKey(i+"->"+j)){
+                    solutionMatrix[i][j][0] = 999;
                 }
             }
         }
-
         //main loop of Floyd-Warshall algorithm
-        for (int k = 1; k <= numVertices; k ++){
+        int k = 1;
+        while(k <= numVertices){
             for (int i = 1; i <= numVertices; i ++){
                 for (int j = 1; j <= numVertices; j ++){
-                    solutionMatrix[i][j][k] = Math.min(solutionMatrix[i][j][k-1],
-                            solutionMatrix[i][k][k-1] + solutionMatrix[k][j][k-1]);
+                    solutionMatrix[i][j][1] = Math.min(solutionMatrix[i][j][0],
+                            ((solutionMatrix[i][k][0]) + (solutionMatrix[k][j][0])));
                 }
             }
+            for (int i = 1; i <= numVertices; i ++){
+                for (int j = 1; j <= numVertices; j ++){
+                    solutionMatrix[i][j][0] = solutionMatrix[i][j][1];
+                }
+            }
+            k ++;
         }
     }
 
+    /**
+     * Get the shortest path for any possible pairs of vertices
+     * @return shortest path for any possible pairs of vertices
+     *         if the graph contains negative cycles, Floyd-Warshall algorithm can't be applied and return 99999
+     */
     public int getShortestPath(){
         int minPath = Integer.MAX_VALUE;
         for (int i = 1; i <= numVertices; i ++){
-            if (solutionMatrix[i][i][numVertices] < 0){
-//                System.out.println("i value = " + i);
-//                System.out.println("solutionMatrix[i][i][numVertices] = " + solutionMatrix[i][i][numVertices]);
-//                System.out.println("Integer.MIN = " + Integer.MIN_VALUE);
-//                System.out.println("Integer.MAX = " + Integer.MAX_VALUE);
-                return -1;
+            if (solutionMatrix[i][i][1] < 0){
+                return 99999;
             }
         }
 
         for (int i = 1; i <= numVertices; i ++){
             for (int j = 1; j <= numVertices; j ++){
-                if (solutionMatrix[i][j][numVertices] < minPath){
-                    minPath = solutionMatrix[i][j][numVertices];
+                if (solutionMatrix[i][j][1] < minPath){
+                    minPath = solutionMatrix[i][j][1];
                 }
             }
         }
         return minPath;
     }
 
-    public void printGraph(){
-        System.out.println("********************   Printing graph info    ********************");
-        System.out.println("Number of vertices: " + numVertices);
-        System.out.println("Number of edges: " + numEdges);
-        System.out.println("********************   Printing edge list    ********************");
-        for (String edgeKey : edges.keySet()){
-            System.out.println(edgeKey + " : " + edges.get(edgeKey));
-        }
-    }
-
-    public void test(){
-        System.out.println(Arrays.deepToString(solutionMatrix));
-    }
-
     public static void main(String[] args) throws FileNotFoundException {
-        //this test file has negative cycle
-        //APSPFinder tester = new APSPFinder("data/g-test1.txt");
+        //correct answer is -19 which is from g3 (g1 and g2 have negative cycles and can't be computed)
+        APSPFinder tester1 = new APSPFinder("data/g1.txt");
+        tester1.runAPSP();
+        if (tester1.getShortestPath() == 99999){
+            System.out.println("data/g1.txt has negative cycle! Can't compute APSP problem.");
+        }
+        else{
+            System.out.println("data/g1.txt -> shortest shortest path is " + tester1.getShortestPath());
+        }
 
-        //this test file has no negative cycle and expected result is -2
-        APSPFinder tester = new APSPFinder("data/g-test2.txt");
+        APSPFinder tester2 = new APSPFinder("data/g2.txt");
+        tester2.runAPSP();
+        if (tester2.getShortestPath() == 99999){
+            System.out.println("data/g2.txt has negative cycle! Can't compute APSP problem.");
+        }
+        else{
+            System.out.println("data/g2.txt -> shortest shortest path is " + tester2.getShortestPath());
+        }
 
-        //APSPFinder tester = new APSPFinder("data/g1.txt");
-
-        tester.printGraph();
-        tester.runAPSP();
-        //tester.test();
-
-        System.out.println(tester.getShortestPath());
+        APSPFinder tester3 = new APSPFinder("data/g3.txt");
+        tester3.runAPSP();
+        if (tester3.getShortestPath() == 99999){
+            System.out.println("data/g3.txt has negative cycle! Can't compute APSP problem.");
+        }
+        else{
+            System.out.println("data/g3.txt -> shortest shortest path is " + tester3.getShortestPath());
+        }
     }
 
 }
