@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Scanner;
-import java.util.zip.CheckedInputStream;
 
 /**
  * Project: Coursera Algorithms by Standford University: Shortest Paths Revisited, NP-Complete Problems and What To Do About Them.
@@ -45,39 +44,46 @@ import java.util.zip.CheckedInputStream;
  * @date : 2021-02-13 00:03
  **/
 public class HeuristicTSPMinCostFinder {
-    private int numCities;
-    private ArrayList<int[]> cities;
+    private final int numCities;
+    private ArrayList<double[]> cities;
     private HashSet<Integer> visited;
-    //double[][] distances;
-    //double[][] solutionMatrix;
+    private final int startCity;
 
+    /**
+     * Construct the TSP problem using external txt file (file format can be found in class description)
+     * @param fileInputName external txt file name
+     * @throws FileNotFoundException throws error if file is not found
+     */
     public HeuristicTSPMinCostFinder(String fileInputName) throws FileNotFoundException {
         Scanner fileScanner;
         cities = new ArrayList<>();
+        startCity = 1;
         try {
             fileScanner = new Scanner(new File(fileInputName));
         } catch (IOException e) {
             throw new FileNotFoundException("Error: Input file is not found.");
         }
         numCities = Integer.parseInt(fileScanner.nextLine());
-        //distances = new double[numCities][numCities];
-        //solutionMatrix = new double[numCities][numCities];
         while (fileScanner.hasNextLine()){
-            double[] city = new double[2];
             String[] cityString = fileScanner.nextLine().split(" ");
-            int cityID = Integer.parseInt(cityString[0]);
-            int cityX = Integer.parseInt(cityString[1]);
-            int cityY = Integer.parseInt(cityString[2]);
-            int[] cityCoordinates = {cityID, cityX, cityY};
+            double cityX = Double.parseDouble(cityString[1]);
+            double cityY = Double.parseDouble(cityString[2]);
+            double[] cityCoordinates = {cityX, cityY};
             cities.add(cityCoordinates);
         }
         visited = new HashSet<>();
     }
 
+    /**
+     * Run the heuristic greedy TSP algorithm
+     * @return The array list that represents shortest path computed from the heuristic greedy TSP algorithm.
+     *         The list starts with start city 1 and ends with start city 1.
+     */
     public ArrayList<Integer> runHeuristicTSP(){
+
         //int[] path = new int[numCities + 1];//number of cities plus one (start city appears twice in path)
         ArrayList<Integer> path = new ArrayList<>();
-        int currCityID = cities.get(0)[0]; //initialize the currCity with the first city
+        int currCityID = startCity; //initialize the currCity with the first city
         path.add(currCityID);
         while (visited.size() != numCities){
 
@@ -87,17 +93,13 @@ public class HeuristicTSPMinCostFinder {
             int rightNearestCityID = -1;
             double rightMinDist = Integer.MAX_VALUE;
 
-
-            int overallNearestCityID = -1;
-            double overallMinDist = Integer.MAX_VALUE;
-
             //iteration to left of curr city, i is the city id, not array index
             for (int i = currCityID - 1; i >= 1; i --){
                 if (visited.contains(i)){
                     continue;
                 }
-                int currCityX = cities.get(currCityID-1)[1];
-                int otherCityX = cities.get(i - 1)[1];
+                double currCityX = cities.get(currCityID-1)[0];
+                double otherCityX = cities.get(i - 1)[0];
                 if (getEuclideanDist(currCityID, i) <= leftMinDist){ //if there is a tie, take the city that has smaller ID
                     leftMinDist = getEuclideanDist(currCityID, i);
                     leftNearestCityID = i;
@@ -113,8 +115,8 @@ public class HeuristicTSPMinCostFinder {
                 if (visited.contains(j)){
                     continue;
                 }
-                int currCityX = cities.get(currCityID-1)[1];
-                int otherCityX = cities.get(j - 1)[1];
+                double currCityX = cities.get(currCityID-1)[0];
+                double otherCityX = cities.get(j - 1)[0];
                 if (getEuclideanDist(currCityID, j) < rightMinDist){
                     rightMinDist = getEuclideanDist(currCityID, j);
                     rightNearestCityID = j;
@@ -124,67 +126,65 @@ public class HeuristicTSPMinCostFinder {
                 }
             }
 
+            visited.add(currCityID);
+
+            //next iteration is on the closer city between left nearest city and right nearest city.
             if (leftMinDist <= rightMinDist){
-                overallMinDist = leftMinDist;
-                overallNearestCityID = leftNearestCityID;
+                path.add(leftNearestCityID);
+                currCityID = leftNearestCityID;
             }
             else {
-                overallMinDist = rightMinDist;
-                overallNearestCityID = rightNearestCityID;
+                path.add(rightNearestCityID);
+                currCityID = rightNearestCityID;
             }
+
             if (path.size() == numCities){
-                path.add(cities.get(0)[0]); //the final city is the start city
+                path.add(startCity); //the final city is the start city
                 break;
             }
-            path.add(overallNearestCityID);
-            visited.add(currCityID);
-            currCityID = overallNearestCityID;
         }
         return path;
     }
 
+    /**
+     * Compute the total distance of the shortest path
+     * @return The total distance of the shortest path
+     */
     public double getTSPMinDist(){
         double minDist = 0;
         ArrayList<Integer> shortestPath = runHeuristicTSP();
-        System.out.println(shortestPath);
         for (int i = 0; i < shortestPath.size() - 1; i ++){
             int cityID = shortestPath.get(i);
             int nextCityID = shortestPath.get(i + 1);
-//            if (i == shortestPath.size() - 2){ // the last city in shortest path is the start city
-//                nextCityID = shortestPath.get(0);
-//            }
-//            else{
-//                nextCityID = shortestPath.get(i + 1);
-//            }
-            //System.out.println(i + " th iteration with city "  + cityID + " " + nextCityID + " " + getEuclideanDist(cityID, nextCityID));
             minDist += getEuclideanDist(cityID, nextCityID);
         }
         return minDist;
     }
 
+    /**
+     * Compute the Euclidean distance between two cities.
+     * @param cityID ID of one of the two cities
+     * @param otherCityID ID of the other city
+     * @return  Euclidean distance between two cities.
+     */
     public double getEuclideanDist(int cityID, int otherCityID){
-        int cityX = cities.get(cityID-1)[1];
-        int cityY = cities.get(cityID-1)[2];
-
-        int otherCityX = cities.get(otherCityID-1)[1];
-        int otherCityY = cities.get(otherCityID-1)[2];
-
+        double cityX = cities.get(cityID-1)[0];
+        double cityY = cities.get(cityID-1)[1];
+        double otherCityX = cities.get(otherCityID-1)[0];
+        double otherCityY = cities.get(otherCityID-1)[1];
         return Math.sqrt(Math.pow(cityX - otherCityX, 2) + Math.pow(cityY - otherCityY, 2));
-    }
-
-    public void printCities(){
-        for(int i = 0; i < cities.size(); i++){
-            System.out.println(cities.get(i)[0] + "th city: " + cities.get(i)[1] + " " + cities.get(i)[2]);
-        }
     }
 
     public static void main(String[] args) throws FileNotFoundException {
         //nn-test1.txt has computed path: 1 3 2 5 6 4 1, TSP distance:15.2361
         //HeuristicTSPMinCostFinder tester  = new HeuristicTSPMinCostFinder("data/nn-test1.txt");
 
-        HeuristicTSPMinCostFinder tester  = new HeuristicTSPMinCostFinder("data/nn-test1.txt");
-        //tester.printCities();
-        //System.out.println(tester.runHeuristicTSP());
-        System.out.println(tester.getTSPMinDist());
+        //Correct answer for assignment is 1203406
+        HeuristicTSPMinCostFinder tester  = new HeuristicTSPMinCostFinder("data/nn.txt");
+        long clockStart = System.currentTimeMillis();
+        System.out.println("Computed TPS minimum distance is: " + tester.getTSPMinDist());
+        long clockEnd = System.currentTimeMillis();
+        long runTime = clockEnd - clockStart;
+        System.out.println("Run time is: " + (double)runTime/1000 + " seconds");
     }
 }
